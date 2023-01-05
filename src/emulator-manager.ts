@@ -81,8 +81,10 @@ export async function launchEmulator(
     await waitForDevice();
 
     if (afterBootDelay) {
+      await exec.exec(`date`);
       // wait additional delay to let the device continue booting
       await delay(afterBootDelay * 1000);
+      await exec.exec(`date`);
     }
 
     await exec.exec(`adb shell input keyevent 82`);
