@@ -82,6 +82,7 @@ export async function launchEmulator(
     await waitForDevice();
 
     if (hwuiRenderer) {
+      await printUiRendererValue();
       console.log(`Setting renderer to ${hwuiRenderer}.`);
       await exec.exec(`adb shell "su root setprop debug.hwui.renderer ${hwuiRenderer}"`);
       await exec.exec(`adb shell "su root stop"`);
@@ -89,25 +90,10 @@ export async function launchEmulator(
 
       // Wait a bit after issuing "root start" (haven't found any way to check 'start' is over, boot_completed remains 1)
       const hwuiRendererWait = 30;
-      console.log(`wait ${hwuiRendererWait} sec until device effectively restarts.`);
+      console.log(`Waiting ${hwuiRendererWait} sec until UI effectively restarts.`);
       await delay(hwuiRendererWait * 1000);
 
-      // Display property value
-      try {
-        let result = '';
-        await exec.exec(`adb shell getprop debug.hwui.renderer`, [], {
-          listeners: {
-            stdout: (data: Buffer) => {
-              result += data.toString();
-            },
-          },
-        });
-        if (result.trim() === '1') {
-          console.log(`debug.hwui.renderer: ${result}`);
-        }
-      } catch (error) {
-        console.warn(error instanceof Error ? error.message : error);
-      }
+      await printUiRendererValue();
     }
 
     if (afterBootDelay) {
@@ -188,4 +174,21 @@ async function waitForDevice(): Promise<void> {
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function printUiRendererValue() {
+  // Display property value
+  try {
+    let result = '';
+    await exec.exec(`adb shell getprop debug.hwui.renderer`, [], {
+      listeners: {
+        stdout: (data: Buffer) => {
+          result += data.toString();
+        },
+      },
+    });
+    console.log(`Current debug.hwui.renderer value: ${result}`);
+  } catch (error) {
+    console.warn(error instanceof Error ? error.message : error);
+  }
 }
