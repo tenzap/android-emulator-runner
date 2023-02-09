@@ -47,6 +47,8 @@ inputs:
    type: boolean
   after-boot-delay:
    type: integer
+  hwui-renderer:
+   type: string
   emulator-build:
    type: string
   working-directory:

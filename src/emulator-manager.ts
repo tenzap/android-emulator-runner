@@ -23,7 +23,8 @@ export async function launchEmulator(
   disableSpellChecker: boolean,
   disableLinuxHardwareAcceleration: boolean,
   enableHardwareKeyboard: boolean,
-  afterBootDelay: number
+  afterBootDelay: number,
+  hwuiRenderer: string
 ): Promise<void> {
   try {
     console.log(`::group::Launch Emulator`);
@@ -79,6 +80,35 @@ export async function launchEmulator(
 
     // wait for emulator to complete booting
     await waitForDevice();
+
+    if (hwuiRenderer) {
+      console.log(`Setting renderer to ${hwuiRenderer}.`);
+      await exec.exec(`adb shell "su root setprop debug.hwui.renderer ${hwuiRenderer}"`);
+      await exec.exec(`adb shell "su root stop"`);
+      await exec.exec(`adb shell "su root start"`);
+
+      // Wait a bit after issuing "root start" (haven't found any way to check 'start' is over, boot_completed remains 1)
+      const hwuiRendererWait = 30;
+      console.log(`wait ${hwuiRendererWait} sec until device effectively restarts.`);
+      await delay(hwuiRendererWait * 1000);
+
+      // Display property value
+      try {
+        let result = '';
+        await exec.exec(`adb shell getprop debug.hwui.renderer`, [], {
+          listeners: {
+            stdout: (data: Buffer) => {
+              result += data.toString();
+            },
+          },
+        });
+        if (result.trim() === '1') {
+          console.log(`debug.hwui.renderer: ${result}`);
+        }
+      } catch (error) {
+        console.warn(error instanceof Error ? error.message : error);
+      }
+    }
 
     if (afterBootDelay) {
       await exec.exec(`date`);
