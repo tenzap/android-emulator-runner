@@ -23,7 +23,8 @@ export async function launchEmulator(
   disableSpellChecker: boolean,
   disableLinuxHardwareAcceleration: boolean,
   enableHardwareKeyboard: boolean,
-  afterBootDelay: number
+  afterBootDelay: number,
+  hwuiRenderer: string
 ): Promise<void> {
   try {
     console.log(`::group::Launch Emulator`);
@@ -79,6 +80,37 @@ export async function launchEmulator(
 
     // wait for emulator to complete booting
     await waitForDevice();
+
+    if (hwuiRenderer) {
+      console.log('Setting renderer to skiagl.');
+      await exec.exec(`adb shell "su root setprop debug.hwui.renderer ${hwuiRenderer}"`);
+      await exec.exec(`adb shell "su root stop"`);
+      await exec.exec(`adb shell "su root start"`);
+
+      // Wait a bit until device restarted
+      console.log(`wait until device effectively restarts`);
+      await waitForDeviceOff();
+
+      // wait for emulator to complete booting
+      await waitForDevice();
+
+      // Display property value
+      try {
+        let result = '';
+        await exec.exec(`adb shell getprop debug.hwui.renderer`, [], {
+          listeners: {
+            stdout: (data: Buffer) => {
+              result += data.toString();
+            },
+          },
+        });
+        if (result.trim() === '1') {
+          console.log(`debug.hwui.renderer: ${result}`);
+        }
+      } catch (error) {
+        console.warn(error instanceof Error ? error.message : error);
+      }
+    }
 
     if (afterBootDelay) {
       await exec.exec(`date`);
@@ -151,6 +183,44 @@ async function waitForDevice(): Promise<void> {
       await delay(retryInterval * 1000);
     } else {
       throw new Error(`Timeout waiting for emulator to boot.`);
+    }
+    attempts++;
+  }
+}
+
+/**
+ * Wait for device off
+ */
+async function waitForDeviceOff(): Promise<void> {
+  let booted = true;
+  let attempts = 0;
+  const retryInterval = 2; // retry every 2 seconds
+  const maxAttempts = EMULATOR_BOOT_TIMEOUT_SECONDS / 2;
+  while (booted) {
+    try {
+      let result = '';
+      await exec.exec(`adb shell getprop sys.boot_completed`, [], {
+        listeners: {
+          stdout: (data: Buffer) => {
+            result += data.toString();
+          },
+        },
+      });
+      if (result.trim() === '1') {
+        //console.log('Emulator booted.');
+        booted = true;
+        //break;
+      }
+    } catch (error) {
+      console.log('Emulator is now OFF.');
+      booted = false;
+      break;
+    }
+
+    if (attempts < maxAttempts) {
+      await delay(retryInterval * 1000);
+    } else {
+      throw new Error(`Timeout waiting for emulator to be OFF.`);
     }
     attempts++;
   }
