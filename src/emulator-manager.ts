@@ -82,17 +82,15 @@ export async function launchEmulator(
     await waitForDevice();
 
     if (hwuiRenderer) {
-      console.log('Setting renderer to skiagl.');
+      console.log(`Setting renderer to ${hwuiRenderer}.`);
       await exec.exec(`adb shell "su root setprop debug.hwui.renderer ${hwuiRenderer}"`);
       await exec.exec(`adb shell "su root stop"`);
       await exec.exec(`adb shell "su root start"`);
 
-      // Wait a bit until device restarted
-      console.log(`wait until device effectively restarts`);
-      await waitForDeviceOff();
-
-      // wait for emulator to complete booting
-      await waitForDevice();
+      // Wait a bit after issuing "root start" (haven't found any way to check 'start' is over, boot_completed remains 1)
+      const hwuiRendererWait = 30;
+      console.log(`wait ${hwuiRendererWait} sec until device effectively restarts.`);
+      await delay(hwuiRendererWait * 1000);
 
       // Display property value
       try {
@@ -183,44 +181,6 @@ async function waitForDevice(): Promise<void> {
       await delay(retryInterval * 1000);
     } else {
       throw new Error(`Timeout waiting for emulator to boot.`);
-    }
-    attempts++;
-  }
-}
-
-/**
- * Wait for device off
- */
-async function waitForDeviceOff(): Promise<void> {
-  let booted = true;
-  let attempts = 0;
-  const retryInterval = 2; // retry every 2 seconds
-  const maxAttempts = EMULATOR_BOOT_TIMEOUT_SECONDS / 2;
-  while (booted) {
-    try {
-      let result = '';
-      await exec.exec(`adb shell getprop sys.boot_completed`, [], {
-        listeners: {
-          stdout: (data: Buffer) => {
-            result += data.toString();
-          },
-        },
-      });
-      if (result.trim() === '1') {
-        //console.log('Emulator booted.');
-        booted = true;
-        //break;
-      }
-    } catch (error) {
-      console.log('Emulator is now OFF.');
-      booted = false;
-      break;
-    }
-
-    if (attempts < maxAttempts) {
-      await delay(retryInterval * 1000);
-    } else {
-      throw new Error(`Timeout waiting for emulator to be OFF.`);
     }
     attempts++;
   }
