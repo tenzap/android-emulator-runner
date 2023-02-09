@@ -126,6 +126,10 @@ async function run() {
     const afterBootDelay = Number(afterBootDelayInput);
     console.log(`after boot delay: ${afterBootDelay}`);
 
+    // set hwuiRenderer
+    const hwuiRenderer = core.getInput('hwui-renderer');
+    console.log(`hwui Renderer: ${hwuiRenderer}`);
+
     // emulator build
     const emulatorBuildInput = core.getInput('emulator-build');
     if (emulatorBuildInput) {
@@ -216,7 +220,8 @@ async function run() {
       disableSpellchecker,
       disableLinuxHardwareAcceleration,
       enableHardwareKeyboard,
-      afterBootDelay
+      afterBootDelay,
+      hwuiRenderer
     );
 
     // execute the custom script

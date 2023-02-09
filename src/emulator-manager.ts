@@ -23,7 +23,8 @@ export async function launchEmulator(
   disableSpellChecker: boolean,
   disableLinuxHardwareAcceleration: boolean,
   enableHardwareKeyboard: boolean,
-  afterBootDelay: number
+  afterBootDelay: number,
+  hwuiRenderer: string
 ): Promise<void> {
   try {
     console.log(`::group::Launch Emulator`);
@@ -76,6 +77,16 @@ export async function launchEmulator(
         },
       },
     });
+
+    // wait for emulator to complete booting
+    await waitForDevice();
+
+    if (hwuiRenderer) {
+      console.log('Setting renderer to skiagl.');
+      await exec.exec(`adb shell "su root setprop debug.hwui.renderer ${hwuiRenderer}"`);
+      await exec.exec(`adb shell "su root stop"`);
+      await exec.exec(`adb shell "su root start"`);
+    }
 
     // wait for emulator to complete booting
     await waitForDevice();
